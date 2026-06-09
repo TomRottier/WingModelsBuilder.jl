@@ -20,7 +20,7 @@ const AEROFOIL_PARAMETERS = Dict(
     :seagull => [],
     :merganser => [],
     :teal => [],
-    :empirical => [],
+    :empirical => ["file", "λ"],
 )
 const AVIAN_AEROFOIL_PARAMETERS = Dict(
     :seagull => [3.8735, -0.807, 0.771, -15.246, 26.482, -18.975, 4.6232, 0.14, 1.333, 0.05, 4.0],
@@ -44,7 +44,7 @@ const PLANFORM_PARAMETERS = Dict(
     :seagull => [],
     :merganser => [],
     :teal => [],
-    :empirical => [],
+    :empirical => ["file", "λ"],
 )
 const AVIAN_PLANFORM_PARAMETERS = Dict(
     :seagull => [0.423, 0.485, 26.08, -209.92, 637.21, -945.068, 695.03, 0.388],
@@ -52,16 +52,24 @@ const AVIAN_PLANFORM_PARAMETERS = Dict(
     :teal => [0.536, 0.808, -66.1, 435.6, -1203.0, 1664.1, -1130.2, 0.545],
 )
 
-function populate_controls!(gl, key, file, params, params_dict)
+function populate_controls!(gl, key, params, params_dict)
     foreach(delete!, contents(gl))
 
     if key == :empirical
-        Label(gl[1, 1], "Data file")
+        Label(gl[1, 1], "Data file"; tellwidth=false)
         tb = Textbox(gl[2, 1]; tellwidth=false, validator=isfile)
+        sl = SliderGrid(gl[3, 1], (label="λ", range=0:0.01:1.0, startvalue=1.0), tellwidth=false)
 
-        on(tb.stored_string; priority=1) do s
-            @debug "updated file" file[]
-            file[] = s
+        on(tb.stored_string; priority=1) do file
+            @debug "updated file" file
+            params[][1] = file
+            notify(params)
+        end
+
+        on(sl.sliders[1].value) do λ
+            @debug "updated parameter" λ
+            params[][2] = λ
+            notify(params)
         end
         return nothing
     end
@@ -81,7 +89,7 @@ function populate_controls!(gl, key, file, params, params_dict)
     return nothing
 end
 
-function handle_selection!(name, options, param_dict, preset_dict, obj, type, params, file, controls_gl)
+function handle_selection!(name, options, param_dict, preset_dict, obj, type, params, controls_gl)
     (key, T) = options[name]
     obj.val = nothing
     type.val = T
@@ -89,30 +97,30 @@ function handle_selection!(name, options, param_dict, preset_dict, obj, type, pa
     @debug "reset object" obj.val
     @debug "updated type" type.val
     @debug "reset parameters" params.val
-    @debug "reset file" file.val
 
     if haskey(preset_dict, key)
         params.val = preset_dict[key]
         foreach(notify, [type, params, obj])
     end
 
-    populate_controls!(controls_gl, key, file, params, param_dict)
+    populate_controls!(controls_gl, key, params, param_dict)
 end
 
-function change_parameters!(type, params, obj)
+function change_parameters!(obj, type, params)
     @debug "parameters changed: " params
     if any(isnothing, params)
         @debug "not all parameters entered, not creating object"
         return nothing
     end
 
-    if type[] isa Union{WingModels.EmpiricalAerofoil,WingModels.EmpiricalPlanform}
-        @debug "empirical wing, no update"
-        return nothing
+    if type[] <: Union{WingModels.EmpiricalAerofoil,WingModels.EmpiricalPlanform}
+        !isfile(params[1]) && return nothing
+        data = readdlm(params[1], ',')
+        obj[] = type[](data, params[2])
     else
         obj[] = type[](params...)
-        @debug "updated object " obj[]
     end
+    @debug "updated object " obj[]
     return nothing
 end
 
@@ -156,7 +164,7 @@ end
 
 
 function @main(args)
-    f = Figure()
+    f = Figure(size=(1000, 600))
 
     # top level
     gl_plots = GridLayout(f[1, 1], 2, 1)
@@ -196,16 +204,12 @@ function @main(args)
     # aerofoil
     aerofoil_obj = Observable{Any}(nothing)
     aerofoil_type = Observable{Any}(nothing)
-    aerofoil_params = Observable(Vector{Union{Float64,Nothing}}())
-    aerofoil_file = Observable("")
+    aerofoil_params = Observable(Vector{Union{Float64,String,Nothing}}())
     on(aerofoil_menu.selection) do name
-        handle_selection!(name, AEROFOIL_OPTIONS, AEROFOIL_PARAMETERS, AVIAN_AEROFOIL_PARAMETERS, aerofoil_obj, aerofoil_type, aerofoil_params, aerofoil_file, gl_aerofoil_controls)
+        handle_selection!(name, AEROFOIL_OPTIONS, AEROFOIL_PARAMETERS, AVIAN_AEROFOIL_PARAMETERS, aerofoil_obj, aerofoil_type, aerofoil_params, gl_aerofoil_controls)
     end
     on(aerofoil_params) do params
-        change_parameters!(aerofoil_type, params, aerofoil_obj)
-    end
-    on(aerofoil_file) do file
-        change_file!(file, aerofoil_type, aerofoil_obj)
+        change_parameters!(aerofoil_obj, aerofoil_type, params)
     end
 
     aerofoil_pts = @lift begin
@@ -214,21 +218,28 @@ function @main(args)
         @debug "generated new aerofoil points at spanwise position" $aerofoil_obj $(spanwise_slider.value)
         pts
     end
+    aerofoil_pts_data = @lift begin
+        if $aerofoil_type == EmpiricalAerofoil && !isnothing($aerofoil_obj)
+            x = $aerofoil_obj.data[:, 1]
+            y1 = $aerofoil_obj.data[:, 2]
+            y2 = $aerofoil_obj.data[:, 3]
+            vcat([Point2f(x, y) for (x, y) in zip(x, y1)], [Point2f(x, y) for (x, y) in zip(x, y2)])
+        else
+            Point2f[]
+        end
+    end
+    scatter!(ax_aerofoil, aerofoil_pts_data)
     lines!(ax_aerofoil, aerofoil_pts)
 
     # planform
     planform_obj = Observable{Any}(nothing)
     planform_type = Observable{Any}(nothing)
-    planform_params = Observable(Vector{Union{Float64,Nothing}}())
-    planform_file = Observable("")
+    planform_params = Observable(Vector{Union{Float64,String,Nothing}}())
     on(planform_menu.selection) do name
-        handle_selection!(name, PLANFORM_OPTIONS, PLANFORM_PARAMETERS, AVIAN_PLANFORM_PARAMETERS, planform_obj, planform_type, planform_params, planform_file, gl_planform_controls)
+        handle_selection!(name, PLANFORM_OPTIONS, PLANFORM_PARAMETERS, AVIAN_PLANFORM_PARAMETERS, planform_obj, planform_type, planform_params, gl_planform_controls)
     end
     on(planform_params) do params
-        change_parameters!(planform_type, params, planform_obj)
-    end
-    on(planform_file) do file
-        change_file!(file, planform_type, planform_obj)
+        change_parameters!(planform_obj, planform_type, params)
     end
 
     planform_pts = @lift begin
@@ -237,6 +248,17 @@ function @main(args)
         @debug "generated new planform points" $planform_obj
         pts
     end
+    planform_pts_data = @lift begin
+        if $planform_type == EmpiricalPlanform && !isnothing($planform_obj)
+            x = $planform_obj.data[:, 1]
+            y1 = $planform_obj.data[:, 2]
+            y2 = $planform_obj.data[:, 3]
+            vcat([Point2f(x, y) for (x, y) in zip(x, y1)], [Point2f(x, y) for (x, y) in zip(x, y2)])
+        else
+            Point2f[]
+        end
+    end
+    scatter!(ax_planform, planform_pts_data)
     lines!(ax_planform, planform_pts)
 
     wing_pts = @lift begin
