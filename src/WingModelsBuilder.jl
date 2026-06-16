@@ -132,16 +132,19 @@ function change_file!(file, type, obj)
     return nothing
 end
 
-function setup_export(gl, aerofoil_obj, planform_obj)
+function setup_export(gl, aerofoil_obj, planform_obj, spanwise_slider_val)
     # Label(gl[1, 1], "Export"; tellwidth=false)
-    btn = Button(gl[1, 1]; label="export")
+    btn1 = Button(gl[1, 1][1, 1]; label="export")
+    btn2 = Button(gl[1, 1][2, 1]; label="export aerofoil")
+    btn3 = Button(gl[1, 1][3, 1]; label="export planform")
+
     tb_fn = Textbox(gl[1, 2];
         placeholder="Enter filename", validator=f -> splitext(f)[2] ∈ (".stl", ".txt"), tellwidth=false)
     tb_nc = Textbox(gl[1, 3];
         placeholder="N chord points", validator=Int, tellwidth=false)
     tb_ns = Textbox(gl[1, 4];
         placeholder="N span points", validator=Int, tellwidth=false)
-    on(btn.clicks) do _
+    on(btn1.clicks) do _
         if (isnothing(tb_nc.stored_string[]) || isnothing(tb_ns.stored_string[]) || isnothing(tb_fn.stored_string[]))
             @debug "export options not complete"
             return nothing
@@ -159,6 +162,33 @@ function setup_export(gl, aerofoil_obj, planform_obj)
         export_fcn(fn, w; nchord, nspan)
         @debug "exported wing object with filename" w fn
     end
+
+    on(btn2.clicks) do _
+        if (isnothing(tb_nc.stored_string[]) || isnothing(tb_fn.stored_string[]))
+            @debug "export options not complete"
+            return nothing
+        end
+        fn = tb_fn.stored_string[]
+        y = spanwise_slider_val
+        nchord = tryparse(Int, tb_nc.stored_string[])
+        isnothing(aerofoil_obj[]) && (@debug "nothing to export"; return)
+        write_pts(fn, aerofoil_obj[], y; n=nchord, delim=',')
+        @debug "exported aerofoil points with filename" aerofoil_obj[] fn
+    end
+
+    on(btn3.clicks) do _
+        if (isnothing(tb_ns.stored_string[]) || isnothing(tb_fn.stored_string[]))
+            @debug "export options not complete"
+            return nothing
+        end
+        fn = tb_fn.stored_string[]
+        nspan = tryparse(Int, tb_ns.stored_string[])
+        isnothing(planform_obj[]) && (@debug "nothing to export"; return)
+        write_pts(fn, planform_obj[]; n=nspan, delim=',')
+        @debug "exported planform points with filename" planform_obj[] fn
+
+    end
+
     return nothing
 end
 
@@ -277,7 +307,7 @@ function @main(args)
 
 
     # export panel
-    setup_export(gl_export, aerofoil_obj, planform_obj)
+    setup_export(gl_export, aerofoil_obj, planform_obj, spanwise_slider.value)
 
     wait(display(f))
     return 0
