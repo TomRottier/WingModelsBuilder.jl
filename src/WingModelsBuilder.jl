@@ -15,8 +15,8 @@ const AEROFOIL_OPTIONS = Dict(
     "Empirical" => (:empirical, EmpiricalAerofoil),
 )
 const AEROFOIL_PARAMETERS = Dict(
-    :naca => ["m", "p", "t"],
-    :plate => ["t"],
+    :naca => collect(string.(fieldnames(NACA4))),
+    :plate => collect(string.(fieldnames(RectangularAerofoil))),
     :seagull => [],
     :merganser => [],
     :teal => [],
@@ -38,9 +38,9 @@ const PLANFORM_OPTIONS = Dict(
     "Empirical" => (:empirical, EmpiricalPlanform),
 )
 const PLANFORM_PARAMETERS = Dict(
-    :rect => ["c₀"],
-    :trap => ["r", "ϕ", "c₀", "x"],
-    :elliptical => ["c₁", "c₂"],
+    :rect => collect(string.(fieldnames(RectangularPlanform))),
+    :trap => collect(string.(fieldnames(TrapezoidalPlanform))),
+    :elliptical => collect(string.(fieldnames(EllipticalPlanform))),
     :seagull => [],
     :merganser => [],
     :teal => [],
