@@ -6,6 +6,8 @@ using DelimitedFiles: readdlm
 
 export main
 
+set_theme!(theme_latexfonts(); fontsize=14)
+
 const AEROFOIL_OPTIONS = Dict(
     "NACA 4 series" => (:naca, NACA4),
     "Flat plate" => (:plate, RectangularAerofoil),
@@ -56,13 +58,14 @@ function populate_controls!(gl, key, params, params_dict)
     foreach(delete!, contents(gl))
 
     if key == :empirical
-        Label(gl[1, 1], "Data file"; tellwidth=false)
-        tb = Textbox(gl[2, 1]; tellwidth=false, validator=isfile)
-        sl = SliderGrid(gl[3, 1], (label="λ", range=0:0.01:1.0, startvalue=1.0), tellwidth=false)
+        Label(gl[1, :], "Data file"; tellwidth=false)
+        tb = Textbox(gl[2, :]; tellwidth=false, validator=isfile)
+        sl = SliderGrid(gl[3, :], (label="", range=0:0.01:1.0, startvalue=1.0), tellwidth=false)
 
         on(tb.stored_string; priority=1) do file
             @debug "updated file" file
             params[][1] = file
+            params[][2] = sl.sliders[1].value[]
             notify(params)
         end
 
@@ -124,18 +127,11 @@ function change_parameters!(obj, type, params)
     return nothing
 end
 
-function change_file!(file, type, obj)
-    @debug "file changed" file
-    data = readdlm(file, ',')
-    obj[] = type[](data)
-    @debug "updated object" obj[]
-    return nothing
-end
 
 function setup_properties(gl, aerofoil_obj, planform_obj)
-    l1 = Label(gl[1, 1], L"Root chord [span$^{-1}$]: "; tellwidth=true, tellheight=false)
-    l2 = Label(gl[2, 1], L"Mean chord [span$^{-1}$]: "; tellwidth=true, tellheight=false)
-    l3 = Label(gl[3, 1], L"Planform area [span$^{-2}$]: "; tellwidth=true, tellheight=false)
+    l1 = Label(gl[1, 1], L"Root chord [span$^{-1}$]: "; tellwidth=false, tellheight=false)
+    l2 = Label(gl[2, 1], L"Mean chord [span$^{-1}$]: "; tellwidth=false, tellheight=false)
+    l3 = Label(gl[3, 1], L"Planform area [span$^{-2}$]: "; tellwidth=false, tellheight=false)
 
     c₀ = @lift begin
         !isnothing($planform_obj) ? string(chord(0.0, $planform_obj)) : ""
@@ -147,24 +143,24 @@ function setup_properties(gl, aerofoil_obj, planform_obj)
         !isnothing($planform_obj) ? string(area($planform_obj)) : ""
     end
 
-    l1a = Label(gl[1, 2], c₀; tellwidth=true, tellheight=false)
-    l2a = Label(gl[2, 2], c̄; tellwidth=true, tellheight=false)
-    l3a = Label(gl[3, 2], S; tellwidth=true, tellheight=false)
+    l1a = Label(gl[1, 2], c₀; tellwidth=false, tellheight=false)
+    l2a = Label(gl[2, 2], c̄; tellwidth=false, tellheight=false)
+    l3a = Label(gl[3, 2], S; tellwidth=false, tellheight=false)
 
     return nothing
 end
 
 function setup_export(gl, aerofoil_obj, planform_obj, spanwise_slider_val)
     # Label(gl[1, 1], "Export"; tellwidth=false)
-    btn1 = Button(gl[1, 1][1, 1]; label="export")
-    btn2 = Button(gl[1, 1][2, 1]; label="export aerofoil")
-    btn3 = Button(gl[1, 1][3, 1]; label="export planform")
+    btn1 = Button(gl[1, 1]; label="export", width=Fixed(150))
+    btn2 = Button(gl[1, 2]; label="export aerofoil", width=Fixed(150))
+    btn3 = Button(gl[1, 3]; label="export planform", width=Fixed(150))
 
-    tb_fn = Textbox(gl[1, 2];
-        placeholder="Enter filename", validator=f -> splitext(f)[2] ∈ (".stl", ".txt"), tellwidth=false)
-    tb_nc = Textbox(gl[1, 3];
+    tb_fn = Textbox(gl[2, 1];
+        placeholder="Filename", validator=f -> splitext(f)[2] ∈ (".stl", ".txt"), tellwidth=false)
+    tb_nc = Textbox(gl[2, 2];
         placeholder="N chord points", validator=Int, tellwidth=false)
-    tb_ns = Textbox(gl[1, 4];
+    tb_ns = Textbox(gl[2, 3];
         placeholder="N span points", validator=Int, tellwidth=false)
     on(btn1.clicks) do _
         if (isnothing(tb_nc.stored_string[]) || isnothing(tb_ns.stored_string[]) || isnothing(tb_fn.stored_string[]))
@@ -220,7 +216,7 @@ function @main(args)
 
     # top level
     gl_plots = GridLayout(f[1, 1], 2, 1)
-    gl_controls = GridLayout(f[1, 2], 2, 1)
+    gl_controls = GridLayout(f[1, 2], 3, 1)
 
     # plots
     gl_2d = GridLayout(gl_plots[2, 1], 1, 2)
@@ -236,15 +232,15 @@ function @main(args)
     # inputs top level
     gl_panels = GridLayout(gl_controls[1, 1], 1, 2)
     gl_properties = GridLayout(gl_controls[2, 1], 3, 2)
-    gl_export = GridLayout(gl_controls[3, 1])
+    gl_export = GridLayout(gl_controls[3, 1], 2, 3)
 
     # aerofoil inputs
-    gl_aerofoil_panel = GridLayout(gl_panels[1, 1]; tellwidth=false, tellheight=false)
+    gl_aerofoil_panel = GridLayout(gl_panels[1, 1]; tellwidth=true, tellheight=false)
     aerofoil_menu = Menu(
         gl_aerofoil_panel[1, 1];
         options=collect(keys(AEROFOIL_OPTIONS)), default="Flat plate"
     )
-    gl_aerofoil_controls = GridLayout(gl_aerofoil_panel[2, 1]; tellheight=false, tellwidth=false, valign=:top)
+    gl_aerofoil_controls = GridLayout(gl_aerofoil_panel[2, 1]; tellheight=false, tellwidth=true, valign=:top)
 
     # planform inputs
     gl_planform_panel = GridLayout(gl_panels[1, 2]; tellwidth=false, tellheight=false)
