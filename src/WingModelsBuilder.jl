@@ -132,6 +132,28 @@ function change_file!(file, type, obj)
     return nothing
 end
 
+function setup_properties(gl, aerofoil_obj, planform_obj)
+    l1 = Label(gl[1, 1], L"Root chord [span$^{-1}$]: "; tellwidth=true, tellheight=false)
+    l2 = Label(gl[2, 1], L"Mean chord [span$^{-1}$]: "; tellwidth=true, tellheight=false)
+    l3 = Label(gl[3, 1], L"Planform area [span$^{-2}$]: "; tellwidth=true, tellheight=false)
+
+    c₀ = @lift begin
+        !isnothing($planform_obj) ? string(chord(0.0, $planform_obj)) : ""
+    end
+    c̄ = @lift begin
+        !isnothing($planform_obj) ? string(mean_chord($planform_obj)) : ""
+    end
+    S = @lift begin
+        !isnothing($planform_obj) ? string(area($planform_obj)) : ""
+    end
+
+    l1a = Label(gl[1, 2], c₀; tellwidth=true, tellheight=false)
+    l2a = Label(gl[2, 2], c̄; tellwidth=true, tellheight=false)
+    l3a = Label(gl[3, 2], S; tellwidth=true, tellheight=false)
+
+    return nothing
+end
+
 function setup_export(gl, aerofoil_obj, planform_obj, spanwise_slider_val)
     # Label(gl[1, 1], "Export"; tellwidth=false)
     btn1 = Button(gl[1, 1][1, 1]; label="export")
@@ -213,7 +235,8 @@ function @main(args)
 
     # inputs top level
     gl_panels = GridLayout(gl_controls[1, 1], 1, 2)
-    gl_export = GridLayout(gl_controls[2, 1])
+    gl_properties = GridLayout(gl_controls[2, 1], 3, 2)
+    gl_export = GridLayout(gl_controls[3, 1])
 
     # aerofoil inputs
     gl_aerofoil_panel = GridLayout(gl_panels[1, 1]; tellwidth=false, tellheight=false)
@@ -241,6 +264,7 @@ function @main(args)
     on(aerofoil_params) do params
         change_parameters!(aerofoil_obj, aerofoil_type, params)
     end
+    notify(aerofoil_menu.selection)
 
     aerofoil_pts = @lift begin
         isnothing($aerofoil_obj) && return Point2{Float64}[]
@@ -271,6 +295,7 @@ function @main(args)
     on(planform_params) do params
         change_parameters!(planform_obj, planform_type, params)
     end
+    notify(planform_menu.selection)
 
     planform_pts = @lift begin
         isnothing($planform_obj) && return Point2{Float64}[]
@@ -305,6 +330,8 @@ function @main(args)
         foreach(autolimits!, [ax_aerofoil, ax_planform, ax_wing])
     end
 
+    # wing properties panel
+    setup_properties(gl_properties, aerofoil_obj, planform_obj)
 
     # export panel
     setup_export(gl_export, aerofoil_obj, planform_obj, spanwise_slider.value)
