@@ -1,4 +1,5 @@
 [deps]
+DataInterpolations = "82cc6244-b520-54b8-b5a6-8a565e85f1d0"
 GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
 Pluto = "c3e4b0f8-55cb-11ea-2926-15256bba5781"
 WingModels = "3bc93d71-937d-427a-a787-bf59875babd2"
