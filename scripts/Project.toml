@@ -1,0 +1,8 @@
+[deps]
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+Pluto = "c3e4b0f8-55cb-11ea-2926-15256bba5781"
+WingModels = "3bc93d71-937d-427a-a787-bf59875babd2"
+WingModelsBuilder = "7968edd9-89ec-42df-b0f3-b6fdb8015176"
+
+[sources]
+WingModels = {rev = "main", url = "https://github.com/TomRottier/WingModels.jl"}
