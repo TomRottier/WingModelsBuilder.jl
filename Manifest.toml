@@ -1665,7 +1665,7 @@ version = "0.1.3"
 
 [[deps.WingModels]]
 deps = ["DataInterpolations", "QuadGK"]
-git-tree-sha1 = "003ba794d0a72f2e12f3ec2701875b43a62c9f9c"
+git-tree-sha1 = "fbcb0035a412ffbb3dec93c86220dbe5f14fbcd4"
 repo-rev = "main"
 repo-url = "https://github.com/TomRottier/WingModels.jl"
 uuid = "3bc93d71-937d-427a-a787-bf59875babd2"
