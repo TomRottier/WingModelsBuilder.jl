@@ -34,10 +34,13 @@ const PLANFORM_OPTIONS = Dict(
     "Rectangular" => (:rect, RectangularPlanform),
     "Trapezoidal" => (:trap, TrapezoidalPlanform),
     "Elliptical" => (:elliptical, EllipticalPlanform),
-    "Seagull" => (:seagull, LiuPlanform),
-    "Merganser" => (:merganser, LiuPlanform),
-    "Teal" => (:teal, LiuPlanform),
+    "Seagull" => (:seagull, EmpiricalPlanform),
+    "Merganser" => (:merganser, EmpiricalPlanform),
+    "Teal" => (:teal, EmpiricalPlanform),
     "Empirical" => (:empirical, EmpiricalPlanform),
+    "Seagull_2p" => (:seagull2p, LiuPlanform),
+    "Merganser_2p" => (:merganser2p, LiuPlanform),
+    "Teal_2p" => (:teal2p, LiuPlanform),
 )
 const PLANFORM_PARAMETERS = Dict(
     :rect => collect(string.(fieldnames(RectangularPlanform))),
@@ -46,12 +49,18 @@ const PLANFORM_PARAMETERS = Dict(
     :seagull => [],
     :merganser => [],
     :teal => [],
+    :seagull2p => [],
+    :merganser2p => [],
+    :teal2p => [],
     :empirical => ["file", "λ"],
 )
 const AVIAN_PLANFORM_PARAMETERS = Dict(
-    :seagull => [0.423, 0.485, 26.08, -209.92, 637.21, -945.068, 695.03, 0.388],
-    :merganser => [0.383, 0.465, 39.1, -323.8, 978.7, -1417.0, 1001.0, 0.423],
-    :teal => [0.536, 0.808, -66.1, 435.6, -1203.0, 1664.1, -1130.2, 0.545],
+    :seagull2p => [0.423, 0.485, 26.08, -209.92, 637.21, -945.068, 695.03, 0.388],
+    :merganser2p => [0.383, 0.465, 39.1, -323.8, 978.7, -1417.0, 1001.0, 0.423],
+    :teal2p => [0.536, 0.808, -66.1, 435.6, -1203.0, 1664.1, -1130.2, 0.545],
+    :seagull => ["data/seagull.csv", 1.0],
+    :merganser => ["data/merganser.csv", 1.0],
+    :teal => ["data/teal.csv", 1.0],
 )
 
 function populate_controls!(gl, key, params, params_dict)
@@ -190,7 +199,7 @@ function setup_export(gl, aerofoil_obj, planform_obj, spanwise_slider_val)
         y = spanwise_slider_val
         nchord = tryparse(Int, tb_nc.stored_string[])
         isnothing(aerofoil_obj[]) && (@debug "nothing to export"; return)
-        write_pts(fn, aerofoil_obj[], y; n=nchord, delim=',')
+        write_pts(fn, aerofoil_obj[], y; n=nchord, delim=(','))
         @debug "exported aerofoil points with filename" aerofoil_obj[] fn
     end
 
@@ -202,7 +211,7 @@ function setup_export(gl, aerofoil_obj, planform_obj, spanwise_slider_val)
         fn = tb_fn.stored_string[]
         nspan = tryparse(Int, tb_ns.stored_string[])
         isnothing(planform_obj[]) && (@debug "nothing to export"; return)
-        write_pts(fn, planform_obj[]; n=nspan, delim=',')
+        write_pts(fn, planform_obj[]; n=nspan, delim=(','))
         @debug "exported planform points with filename" planform_obj[] fn
 
     end
